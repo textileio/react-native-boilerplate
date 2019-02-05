@@ -1,0 +1,49 @@
+{
+  "name": "textile-ipfs-mobile-boilerplate",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "node node_modules/react-native/local-cli/cli.js start",
+    "test": "jest",
+    "postinstall": "rm -rf node_modules/\\@textile/react-native-sdk/example"
+  },
+  "dependencies": {
+    "@textile/react-native-sdk": "file:./../../react-native-sdk",
+    "prop-types": "^15.6.2",
+    "react": "^16.6.3",
+    "react-native": "^0.57.2",
+    "react-native-background-fetch": "^2.4.3",
+    "react-native-background-timer": "2.1.0-alpha.6",
+    "react-native-fs": "^2.11.17"
+  },
+  "devDependencies": {
+    "@types/jest": "^24.0.0",
+    "@types/react": "^16.8.1",
+    "@types/react-native": "^0.57.32",
+    "@types/react-test-renderer": "^16.0.3",
+    "babel-jest": "23.6.0",
+    "jest": "23.6.0",
+    "metro-react-native-babel-preset": "0.50.0",
+    "react-native-typescript-transformer": "^1.2.11",
+    "react-test-renderer": "16.6.1",
+    "typescript": "^3.3.1"
+  },
+  "jest": {
+    "preset": "react-native",
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js"
+    ],
+    "transform": {
+      "^.+\\.(js)$": "<rootDir>/node_modules/babel-jest",
+      "\\.(ts|tsx)$": "<rootDir>/node_modules/ts-jest/preprocessor.js"
+    },
+    "testRegex": "(/__tests__/.*|\\.(test|spec))\\.(ts|tsx|js)$",
+    "testPathIgnorePatterns": [
+      "\\.snap$",
+      "<rootDir>/node_modules/"
+    ],
+    "cacheDirectory": ".jest/cache"
+  }
+}
