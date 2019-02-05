@@ -40,3 +40,4 @@ react-native run-ios
 
 Should look like this,
 
+![demo](https://ipfs.io/ipfs/Qme5NdF5qVLFYDxuPLENDsK8KStuU4CsLLeVpQSFEfd6LQ)
