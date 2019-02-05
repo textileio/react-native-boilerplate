@@ -6,19 +6,23 @@ import Textile, {API, Models} from '@textile/react-native-sdk';
 
 type Props = {};
 
+// You could use Models.NodeState here to match the internals of Textile
+// But you'll have to deal with a few more possible states
 type NodeStage = 'empty' | 'setup' | 'starting' | 'started'
 type State = {
   api_version: string
-  current_state: string
+  current_app_state: string
+  node_state: Models.NodeState,
   overview: Models.Overview
   peer_id: string
-  previous_state: string
+  previous_app_state: string
   stage: NodeStage
 }
 export default class App extends Component<Props> {
   state = {
     api_version: 'unknown',
-    current_state: 'active',
+    current_app_state: 'active',
+    node_state: 'nonexistent',
     overview: {
       account_peer_cnt: -1,
       thread_cnt: -1,
@@ -26,7 +30,7 @@ export default class App extends Component<Props> {
       contact_cnt: -1
     },
     peer_id: 'unknown',
-    previous_state: 'unknown',
+    previous_app_state: 'unknown',
     stage: 'empty'
   }
 
@@ -74,8 +78,13 @@ export default class App extends Component<Props> {
     
     // We'll ad a listener so we can display updates issued by the AppStateEventHandler
     DeviceEventEmitter.addListener('@textile/appNextState', (payload) => {
-      const previous_state = this.state.current_state
-      this.setState({current_state: payload.nextState, previous_state})
+      const previous_app_state = this.state.current_app_state
+      this.setState({current_app_state: payload.nextState, previous_app_state})
+    })
+
+    // Listen for node state changes
+    DeviceEventEmitter.addListener('@textile/newNodeState', (payload) => {
+      this.setState({node_state: payload.state})
     })
 
     this.setState({stage: 'starting'})
@@ -112,16 +121,17 @@ export default class App extends Component<Props> {
   render() {
     return (
       <View style={styles.container}>
-        <Text style={styles.heading}>Mobile IPFS App</Text>
+        <Text style={styles.heading}>Mobile IPFS Peer</Text>
         <Text style={styles.subheading}
               onPress={() => Linking.openURL('https://textile.io')}>
           Powered by Textile
         </Text>
-        <Text style={styles.instructions}>API Version: {this.state.api_version}</Text>
-        <Text style={styles.instructions}>Peer ID: {this.state.peer_id.substring(0, 12)}...</Text>
-        <Text style={styles.instructions}>Pin Count: {this.state.overview.file_cnt}</Text>
-        <Text style={styles.instructions}>Current State: {this.state.current_state}</Text>
-        <Text style={styles.instructions}>Previous State: {this.state.previous_state}</Text>
+        <Text style={styles.item}>API Version: {this.state.api_version}</Text>
+        <Text style={styles.item}>Node State: {this.state.node_state}</Text>
+        <Text style={styles.item}>Peer ID: {this.state.peer_id.substring(0, 12)}...</Text>
+        <Text style={styles.item}>Pin Count: {this.state.overview.file_cnt}</Text>
+        <Text style={styles.item}>App Status: {this.state.current_app_state}</Text>
+        <Text style={styles.item}>Previous App Status: {this.state.previous_app_state}</Text>
       </View>
     );
   }
@@ -144,7 +154,7 @@ const styles = StyleSheet.create({
     margin: 10,
     color: '#2935FF',
   },
-  instructions: {
+  item: {
     textAlign: 'center',
     color: '#333333',
     marginBottom: 5,
