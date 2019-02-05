@@ -40,4 +40,3 @@ react-native run-ios
 
 Should look like this,
 
-![Success](http://i.imgur.com/XE31uc4.jpg)
