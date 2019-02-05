@@ -76,7 +76,6 @@ export default class App extends Component<Props> {
   }
 
   componentDidMount() {
-    console.log('axh init', this.textile.isInitialized())
     if (!this.textile.isInitialized()) {
       this.setState({stage: 'setup'})
     }
@@ -113,7 +112,6 @@ export default class App extends Component<Props> {
     // You can use your node's API from anywhere in your code by importing the API class
     API.peerId().then((result: string) => {
       this.setState({peer_id: result})
-      console.log('axh version', result)
     }).catch((error: Error) => {
       console.error(error)
     })
