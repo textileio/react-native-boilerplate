@@ -1,17 +1,6 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- * @flow
- * @lint-ignore-every XPLATJSCOPYRIGHT1
- */
-
 import React from 'react';
 import {Component} from 'react';
 import { DeviceEventEmitter, StyleSheet, Text, View, Linking } from 'react-native';
-
-import AppStateEventHander from './AppStateEventHandler';
 
 import Textile, {API, Models} from '@textile/react-native-sdk';
 
@@ -43,7 +32,6 @@ export default class App extends Component<Props> {
 
   textile = Textile
 
-  appStateEventHander = new AppStateEventHander()
   componentDidUpdate(prevProps: Props, prevState: State) {
     if (this.state.stage !== prevState.stage) {
       switch (this.state.stage) {
@@ -118,7 +106,7 @@ export default class App extends Component<Props> {
   }
 
   componentWillUnmount () {
-    this.appStateEventHander.tearDown()
+    this.textile.tearDown()
   }
 
   render() {
