@@ -3,7 +3,7 @@ import {Component} from 'react';
 import * as RNFS from 'react-native-fs';
 import { DeviceEventEmitter, StyleSheet, Text, View, Linking, TouchableOpacity } from 'react-native';
 
-import Textile, {API, NodeState, Overview, ThreadInfo, BlockInfo} from '@textile/react-native-sdk';
+import Textile, {API, NodeState, Overview, ThreadInfo, BlockInfo, File} from '@textile/react-native-sdk';
 import { IMobilePreparedFiles } from '@textile/react-native-protobufs';
 
 type Props = {};
@@ -18,6 +18,7 @@ type State = {
   overview: Overview
   peer_id: string
   previous_app_state: string
+  recentPinHash: string
   stage: NodeStage
   threads: Array<string>
 }
@@ -34,6 +35,7 @@ export default class App extends Component<Props> {
     },
     peer_id: 'unknown',
     previous_app_state: 'unknown',
+    recentPinHash: 'none',
     stage: 'empty',
     threads: []
   }
@@ -176,7 +178,10 @@ export default class App extends Component<Props> {
       if (!dir) {
         return
       }
-      this.textile.api.addThreadFiles(dir, this.state.threads[0], '').then(() => {
+      this.textile.api.addThreadFiles(dir, this.state.threads[0], '').then((result: BlockInfo) => {
+        this.setState({
+          recentPinHash: result.id
+        })
         API.overview().then((result: Overview) => {
           this.setState({
             overview: result
@@ -186,24 +191,22 @@ export default class App extends Component<Props> {
     })
   }
 
+  // Simple logic to toggle the node on and off again
   toggleNode = () => {
     if (this.state.stage === 'stopped') {
-      console.log('axh to start')
       this.startNode()
     } else if (this.state.stage === 'started') {
-      console.log('axh to stop')
       this.setState({stage: 'stopping'})
       this.textile.shutDown().then(() => {
         this.setState({stage: 'stopped'})
-        console.log('axh create thread')
       })
     }
   }
-  
+
   render() {
     return (
       <View style={styles.container}>
-        <Text style={styles.heading}>Mobile IPFS Peer</Text>
+        <Text style={styles.heading}>Your IPFS Peer</Text>
         <Text style={styles.subheading}
               onPress={() => Linking.openURL('https://textile.io')}>
           Powered by Textile
@@ -211,16 +214,16 @@ export default class App extends Component<Props> {
         <View style={styles.itemList}>
           <Text style={styles.item}>API Version: {this.state.api_version}</Text>
           <Text style={styles.item}>Node State: {this.state.node_state}</Text>
-          <Text style={styles.item}>Peer ID: {this.state.peer_id.substring(0, 12)}...</Text>
+          <Text style={styles.item}>Peer ID: {this.state.peer_id && this.state.peer_id.substring(0, 12)}...</Text>
           <Text style={styles.item}>Pin Count: {this.state.overview.file_cnt}</Text>
           <Text style={styles.item}>Thread Count: {this.state.overview.thread_cnt}</Text>
           <Text style={styles.item}>App Status: {this.state.current_app_state}</Text>
           <Text style={styles.item}>Previous App Status: {this.state.previous_app_state}</Text>
-          <Text style={styles.item}>filePin: {this.state.filePin}</Text>
         </View>
         {this.toggleNodeButton()}
         {this.createThreadButton()}
         {this.newPinButton()}
+          <Text style={styles.smallItem}>{this.state.recentPinHash}</Text>
       </View>
     );
   }
@@ -297,5 +300,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#333333',
     marginBottom: 5,
+  },
+  smallItem: {
+    textAlign: 'center',
+    color: '#FFB6D5',
+    marginBottom: 5,
+    fontSize: 8,
   },
 });

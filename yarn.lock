@@ -622,8 +622,9 @@
   dependencies:
     protobufjs "^6.8.8"
 
-"@textile/react-native-sdk@file:../../react-native-sdk":
-  version "1.1.0-rc4"
+"@textile/react-native-sdk@1.1.0-rc5":
+  version "1.1.0-rc5"
+  resolved "https://registry.yarnpkg.com/@textile/react-native-sdk/-/react-native-sdk-1.1.0-rc5.tgz#65584f75e74708158a7527d16340c3fd3f33d21a"
   dependencies:
     "@textile/go-mobile" "1.0.0-rc31"
     "@textile/react-native-protobufs" "1.1.0"
