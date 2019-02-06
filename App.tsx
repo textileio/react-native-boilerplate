@@ -1,8 +1,10 @@
 import React from 'react';
 import {Component} from 'react';
-import { DeviceEventEmitter, StyleSheet, Text, View, Linking } from 'react-native';
+import * as RNFS from 'react-native-fs';
+import { DeviceEventEmitter, StyleSheet, Text, View, Linking, TouchableOpacity } from 'react-native';
 
-import Textile, {API, Models} from '@textile/react-native-sdk';
+import Textile, {API, NodeState, Overview, ThreadInfo, BlockInfo} from '@textile/react-native-sdk';
+import { IMobilePreparedFiles } from '@textile/react-native-protobufs';
 
 type Props = {};
 
@@ -12,11 +14,12 @@ type NodeStage = 'empty' | 'setup' | 'starting' | 'started'
 type State = {
   api_version: string
   current_app_state: string
-  node_state: Models.NodeState,
-  overview: Models.Overview
+  node_state: NodeState,
+  overview: Overview
   peer_id: string
   previous_app_state: string
   stage: NodeStage
+  threads: Array<string>
 }
 export default class App extends Component<Props> {
   state = {
@@ -31,7 +34,8 @@ export default class App extends Component<Props> {
     },
     peer_id: 'unknown',
     previous_app_state: 'unknown',
-    stage: 'empty'
+    stage: 'empty',
+    threads: []
   }
 
   textile = Textile
@@ -53,9 +57,10 @@ export default class App extends Component<Props> {
           console.info('Textile running -- checking version');
           this.getAPIVersion()
           this.getPeerId()
+          this.refreshLocalThreads()
 
           // No need for a helper
-          API.overview().then((result: Models.Overview) => {
+          API.overview().then((result: Overview) => {
             this.setState({
               overview: result
             })
@@ -64,6 +69,13 @@ export default class App extends Component<Props> {
           // Setup a l
           break;
       }
+    }
+    if (this.state.threads.length !== prevState.threads.length) {
+      API.overview().then((result: Overview) => {
+        this.setState({
+          overview: result
+        })
+      })
     }
   }
 
@@ -88,7 +100,11 @@ export default class App extends Component<Props> {
     })
 
     this.setState({stage: 'starting'})
+
+    // Store a small image for testing pins later
+    RNFS.downloadFile({fromUrl:'https://ipfs.textile.io:5050/ipfs/QmT3jRTd57HrM4K5cCNkSk9uQidjLrZPAnKe8V9oxfX2Bp', toFile: `${RNFS.DocumentDirectoryPath}/textile.png`})
   }
+
   startNode() {
     // Next, you tell that instance to create a Textile node and start it
     this.textile.createAndStartNode().then(() => {
@@ -97,6 +113,17 @@ export default class App extends Component<Props> {
       console.error(error)
     })
   }
+
+  // Gets a map of Thread IDs into our local state
+  refreshLocalThreads () {
+    this.textile.api.threads().then((result: ReadonlyArray<ThreadInfo>) => {
+      this.setState({
+        threads: result.map((threadInfo) => threadInfo.id)
+      })
+    })
+  }
+  
+  // Gets the API version running in Textile
   getAPIVersion() {
     // You can run the api object right on your textile instance
     this.textile.api.version().then((result: string) => {
@@ -105,6 +132,8 @@ export default class App extends Component<Props> {
       console.error(error)
     })
   }
+
+  // Get the local node's PeerId
   getPeerId() {
     // You can use your node's API from anywhere in your code by importing the API class
     API.peerId().then((result: string) => {
@@ -114,10 +143,63 @@ export default class App extends Component<Props> {
     })
   }
 
+  // Clear the state
   componentWillUnmount () {
     this.textile.tearDown()
   }
+  
+  // Not safe to use in a production app
+  fake_uuid() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
 
+  // Create a new Thread for writing files to. Read more about threads on https://github.com/textileio/textile-go/wiki
+  createThread = () => {
+    const key = `textile-ipfs-demo-${this.fake_uuid()}`
+    this.textile.api.addThread(key, `Thread #${this.state.threads.length}`, true).then((result: ThreadInfo) => {
+      this.setState({
+        threads: [...this.state.threads, result.id]
+      })
+    })
+  }
+
+  // Add the basic text file we created during the setup() step to IPFS
+  addNewPin = () => {
+    if (this.state.overview.thread_cnt < 1) {
+      return
+    }
+    this.textile.api.prepareFilesAsync(`${RNFS.DocumentDirectoryPath}/textile.png`, this.state.threads[0]).then((result: IMobilePreparedFiles) => {
+      const dir = result.dir
+      if (!dir) {
+        return
+      }
+      this.textile.api.addThreadFiles(dir, this.state.threads[0], '').then(() => {
+        API.overview().then((result: Overview) => {
+          this.setState({
+            overview: result
+          })
+        })
+      })
+    })
+  }
+
+  toggleNode = () => {
+    if (this.state.stage === 'stopped') {
+      console.log('axh to start')
+      this.startNode()
+    } else if (this.state.stage === 'started') {
+      console.log('axh to stop')
+      this.setState({stage: 'stopping'})
+      this.textile.shutDown().then(() => {
+        this.setState({stage: 'stopped'})
+        console.log('axh create thread')
+      })
+    }
+  }
+  
   render() {
     return (
       <View style={styles.container}>
@@ -126,14 +208,61 @@ export default class App extends Component<Props> {
               onPress={() => Linking.openURL('https://textile.io')}>
           Powered by Textile
         </Text>
-        <Text style={styles.item}>API Version: {this.state.api_version}</Text>
-        <Text style={styles.item}>Node State: {this.state.node_state}</Text>
-        <Text style={styles.item}>Peer ID: {this.state.peer_id.substring(0, 12)}...</Text>
-        <Text style={styles.item}>Pin Count: {this.state.overview.file_cnt}</Text>
-        <Text style={styles.item}>App Status: {this.state.current_app_state}</Text>
-        <Text style={styles.item}>Previous App Status: {this.state.previous_app_state}</Text>
+        <View style={styles.itemList}>
+          <Text style={styles.item}>API Version: {this.state.api_version}</Text>
+          <Text style={styles.item}>Node State: {this.state.node_state}</Text>
+          <Text style={styles.item}>Peer ID: {this.state.peer_id.substring(0, 12)}...</Text>
+          <Text style={styles.item}>Pin Count: {this.state.overview.file_cnt}</Text>
+          <Text style={styles.item}>Thread Count: {this.state.overview.thread_cnt}</Text>
+          <Text style={styles.item}>App Status: {this.state.current_app_state}</Text>
+          <Text style={styles.item}>Previous App Status: {this.state.previous_app_state}</Text>
+          <Text style={styles.item}>filePin: {this.state.filePin}</Text>
+        </View>
+        {this.toggleNodeButton()}
+        {this.createThreadButton()}
+        {this.newPinButton()}
       </View>
     );
+  }
+
+  toggleNodeButton() {
+    return (
+      <View>
+        <TouchableOpacity
+          onPress={this.toggleNode}
+        >
+          <Text style={styles.button}>Toggle Node</Text>
+        </TouchableOpacity>
+      </View>
+    )
+  }
+
+  createThreadButton() {
+    const disabled = this.state.node_state !== 'started'
+    return (
+      <View>
+        <TouchableOpacity
+          onPress={this.createThread}
+          disabled={disabled}
+        >
+          <Text style={[styles.button, disabled && styles.disabled]}>Create Thread</Text>
+        </TouchableOpacity>
+      </View>
+    )
+  }
+
+  newPinButton() {
+    const disabled = this.state.node_state !== 'started' || this.state.overview.thread_cnt < 1
+    return (
+      <View>
+        <TouchableOpacity
+          onPress={this.addNewPin}
+          disabled={disabled}
+        >
+          <Text style={[styles.button, disabled && styles.disabled]}>Pin File</Text>
+        </TouchableOpacity>
+      </View>
+    )
   }
 }
 
@@ -153,6 +282,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     margin: 10,
     color: '#2935FF',
+  },
+  button: {
+    margin: 14,
+    color: '#FF1C3F',
+  },
+  disabled: {
+    color: '#FFB6D5'
+  },
+  itemList: {
+    margin: 10,
   },
   item: {
     textAlign: 'center',
