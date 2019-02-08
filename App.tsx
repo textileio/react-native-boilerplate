@@ -3,7 +3,7 @@ import {Component} from 'react';
 import * as RNFS from 'react-native-fs';
 import { DeviceEventEmitter, StyleSheet, Text, View, Linking, TouchableOpacity } from 'react-native';
 
-import Textile, {API, NodeState, Overview, ThreadInfo, BlockInfo, File} from '@textile/react-native-sdk';
+import Textile, {Events, NodeState, Overview, ThreadInfo, BlockInfo} from '@textile/react-native-sdk';
 import { IMobilePreparedFiles } from '@textile/react-native-protobufs';
 
 type Props = {};
@@ -62,7 +62,7 @@ export default class App extends Component<Props> {
           this.refreshLocalThreads()
 
           // No need for a helper
-          API.overview().then((result: Overview) => {
+          this.textile.overview().then((result: Overview) => {
             this.setState({
               overview: result
             })
@@ -73,7 +73,7 @@ export default class App extends Component<Props> {
       }
     }
     if (this.state.threads.length !== prevState.threads.length) {
-      API.overview().then((result: Overview) => {
+      this.textile.overview().then((result: Overview) => {
         this.setState({
           overview: result
         })
@@ -85,6 +85,49 @@ export default class App extends Component<Props> {
     if (!this.textile.isInitialized()) {
       this.setState({stage: 'setup'})
     }
+
+    // const d = new Events()
+    Events.addListener('onOnline', () => {
+      console.info('axh @textile/onOnline', true)
+    })
+    DeviceEventEmitter.addListener('@textile/newNodeState', (payload) => {
+      console.info('axh @textile/newNodeState', payload.state)
+    })
+    DeviceEventEmitter.addListener('@textile/startNodeFinished', () => {
+      console.info('axh @textile/startNodeFinished')
+    })
+    DeviceEventEmitter.addListener('@textile/stopNodeAfterDelayStarting', () => {
+      console.info('axh @textile/stopNodeAfterDelayStarting')
+    })
+    DeviceEventEmitter.addListener('@textile/stopNodeAfterDelayCancelled', () => {
+      console.info('axh @textile/stopNodeAfterDelayCancelled')
+    })
+    DeviceEventEmitter.addListener('@textile/stopNodeAfterDelayFinishing', () => {
+      console.info('axh @textile/stopNodeAfterDelayFinishing')
+    })
+    DeviceEventEmitter.addListener('@textile/stopNodeAfterDelayComplete', () => {
+      console.info('axh @textile/stopNodeAfterDelayComplete')
+    })
+    DeviceEventEmitter.addListener('@textile/appStateChange', (payload) => {
+      console.info('axh @textile/appStateChange', payload.previousState, payload.newState)
+    })
+    DeviceEventEmitter.addListener('@textile/updateProfile', () => {
+      console.info('axh @textile/updateProfile')
+    })
+    DeviceEventEmitter.addListener('@textile/newErrorMessage', (payload) => {
+      console.info('axh @textile/newErrorMessage', payload.error)
+    })
+    // Account actions
+    DeviceEventEmitter.addListener('@textile/setRecoveryPhrase', (payload) => {
+      console.info('axh @textile/setRecoveryPhrase')
+    })
+    DeviceEventEmitter.addListener('@textile/walletInitSuccess', () => {
+      console.info('axh @textile/walletInitSuccess')
+    })
+    // Migration actions
+    DeviceEventEmitter.addListener('@textile/migrationNeeded', (payload) => {
+      console.info('axh @textile/migrationNeeded')
+    })
   }
   setup () {
     // First you setup your state-preserving instance of Textile
@@ -118,7 +161,7 @@ export default class App extends Component<Props> {
 
   // Gets a map of Thread IDs into our local state
   refreshLocalThreads () {
-    this.textile.api.threads().then((result: ReadonlyArray<ThreadInfo>) => {
+    this.textile.threads().then((result: ReadonlyArray<ThreadInfo>) => {
       this.setState({
         threads: result.map((threadInfo) => threadInfo.id)
       })
@@ -128,7 +171,7 @@ export default class App extends Component<Props> {
   // Gets the API version running in Textile
   getAPIVersion() {
     // You can run the api object right on your textile instance
-    this.textile.api.version().then((result: string) => {
+    this.textile.version().then((result: string) => {
       this.setState({api_version: result})
     }).catch((error: Error) => {
       console.error(error)
@@ -137,8 +180,7 @@ export default class App extends Component<Props> {
 
   // Get the local node's PeerId
   getPeerId() {
-    // You can use your node's API from anywhere in your code by importing the API class
-    API.peerId().then((result: string) => {
+    this.textile.peerId().then((result: string) => {
       this.setState({peer_id: result})
     }).catch((error: Error) => {
       console.error(error)
@@ -161,7 +203,7 @@ export default class App extends Component<Props> {
   // Create a new Thread for writing files to. Read more about threads on https://github.com/textileio/textile-go/wiki
   createThread = () => {
     const key = `textile-ipfs-demo-${this.fake_uuid()}`
-    this.textile.api.addThread(key, `Thread #${this.state.threads.length}`, true).then((result: ThreadInfo) => {
+    this.textile.addThread(key, `Thread #${this.state.threads.length}`, true).then((result: ThreadInfo) => {
       this.setState({
         threads: [...this.state.threads, result.id]
       })
@@ -173,20 +215,22 @@ export default class App extends Component<Props> {
     if (this.state.overview.thread_cnt < 1) {
       return
     }
-    this.textile.api.prepareFilesAsync(`${RNFS.DocumentDirectoryPath}/textile.png`, this.state.threads[0]).then((result: IMobilePreparedFiles) => {
-      const dir = result.dir
-      if (!dir) {
-        return
+    this.textile.prepareFilesAsync(`${RNFS.DocumentDirectoryPath}/textile.png`, this.state.threads[0])
+      .then((result: IMobilePreparedFiles) => {
+        const dir = result.dir
+        if (!dir) {
+          return
       }
-      this.textile.api.addThreadFiles(dir, this.state.threads[0], '').then((result: BlockInfo) => {
-        this.setState({
-          recentPinHash: result.id
-        })
-        API.overview().then((result: Overview) => {
+      this.textile.addThreadFiles(dir, this.state.threads[0], '')
+        .then((result: BlockInfo) => {
           this.setState({
-            overview: result
+            recentPinHash: result.id
           })
-        })
+          this.textile.overview().then((result: Overview) => {
+            this.setState({
+              overview: result
+            })
+          })
       })
     })
   }

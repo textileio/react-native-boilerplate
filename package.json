@@ -4,11 +4,10 @@
   "private": true,
   "scripts": {
     "start": "node node_modules/react-native/local-cli/cli.js start",
-    "test": "jest",
-    "postinstall": "rm -rf node_modules/\\@textile/react-native-sdk/example"
+    "test": "jest"
   },
   "dependencies": {
-    "@textile/react-native-sdk": "1.1.0-rc5",
+    "@textile/react-native-sdk": "file:../../react-native-sdk",
     "prop-types": "^15.6.2",
     "react": "^16.6.3",
     "react-native": "^0.57.2",
