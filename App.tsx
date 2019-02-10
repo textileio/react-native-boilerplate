@@ -89,11 +89,7 @@ export default class App extends Component<Props> {
     
     this.createDemoFile()
 
-    this.textile.setup({
-      RELEASE_TYPE: 'beta',
-      TEXTILE_CAFE_GATEWAY_URL: "https://gateway.textile.cafe",
-      TEXTILE_CAFE_OVERRIDE: undefined
-    })
+    this.textile.setup()
   }
   createDemoFile = () => {
     // Store a small image for testing pins later
