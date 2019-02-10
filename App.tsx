@@ -3,14 +3,13 @@ import {Component} from 'react';
 import * as RNFS from 'react-native-fs';
 import { DeviceEventEmitter, StyleSheet, Text, View, Linking, TouchableOpacity } from 'react-native';
 
-import Textile, {Events, NodeState, Overview, ThreadInfo, BlockInfo} from '@textile/react-native-sdk';
+import {Textile, NodeState, Overview, ThreadInfo, BlockInfo} from '@textile/react-native-sdk';
 import { IMobilePreparedFiles } from '@textile/react-native-protobufs';
 
 type Props = {};
 
 // You could use Models.NodeState here to match the internals of Textile
 // But you'll have to deal with a few more possible states
-type NodeStage = 'empty' | 'setup' | 'starting' | 'started'
 type State = {
   api_version: string
   current_app_state: string
@@ -19,7 +18,6 @@ type State = {
   peer_id: string
   previous_app_state: string
   recentPinHash: string
-  stage: NodeStage
   threads: Array<string>
 }
 export default class App extends Component<Props> {
@@ -40,23 +38,13 @@ export default class App extends Component<Props> {
     threads: []
   }
 
-  textile = Textile
+  textile = new Textile({debug: true})
 
   componentDidUpdate(prevProps: Props, prevState: State) {
-    if (this.state.stage !== prevState.stage) {
-      switch (this.state.stage) {
-        case 'empty':
-          break;
-        case 'setup':
-          console.info('Creating an instance of Textile');
-          this.setup()
-          break;
-        case 'starting':
-          console.info('Creating a Textile node and starting the instance');
-          this.startNode()
-          break;
-        case 'started':
-          console.info('Textile running -- checking version');
+    if (this.state.node_state !== prevState.node_state) {
+      switch (this.state.node_state) {
+        case NodeState.started:
+          console.info('axh Textile running -- checking version');
           this.getAPIVersion()
           this.getPeerId()
           this.refreshLocalThreads()
@@ -67,8 +55,8 @@ export default class App extends Component<Props> {
               overview: result
             })
           })
-
-          // Setup a l
+          break;
+        default:
           break;
       }
     }
@@ -82,81 +70,35 @@ export default class App extends Component<Props> {
   }
 
   componentDidMount() {
-    if (!this.textile.isInitialized()) {
-      this.setState({stage: 'setup'})
-    }
-
-    // const d = new Events()
-    Events.addListener('onOnline', () => {
-      console.info('axh @textile/onOnline', true)
-    })
-    DeviceEventEmitter.addListener('@textile/newNodeState', (payload) => {
-      console.info('axh @textile/newNodeState', payload.state)
-    })
-    DeviceEventEmitter.addListener('@textile/startNodeFinished', () => {
-      console.info('axh @textile/startNodeFinished')
-    })
-    DeviceEventEmitter.addListener('@textile/stopNodeAfterDelayStarting', () => {
-      console.info('axh @textile/stopNodeAfterDelayStarting')
-    })
-    DeviceEventEmitter.addListener('@textile/stopNodeAfterDelayCancelled', () => {
-      console.info('axh @textile/stopNodeAfterDelayCancelled')
-    })
-    DeviceEventEmitter.addListener('@textile/stopNodeAfterDelayFinishing', () => {
-      console.info('axh @textile/stopNodeAfterDelayFinishing')
-    })
-    DeviceEventEmitter.addListener('@textile/stopNodeAfterDelayComplete', () => {
-      console.info('axh @textile/stopNodeAfterDelayComplete')
-    })
-    DeviceEventEmitter.addListener('@textile/appStateChange', (payload) => {
-      console.info('axh @textile/appStateChange', payload.previousState, payload.newState)
-    })
-    DeviceEventEmitter.addListener('@textile/updateProfile', () => {
-      console.info('axh @textile/updateProfile')
-    })
-    DeviceEventEmitter.addListener('@textile/newErrorMessage', (payload) => {
-      console.info('axh @textile/newErrorMessage', payload.error)
-    })
-    // Account actions
-    DeviceEventEmitter.addListener('@textile/setRecoveryPhrase', (payload) => {
-      console.info('axh @textile/setRecoveryPhrase')
-    })
-    DeviceEventEmitter.addListener('@textile/walletInitSuccess', () => {
-      console.info('axh @textile/walletInitSuccess')
-    })
-    // Migration actions
-    DeviceEventEmitter.addListener('@textile/migrationNeeded', (payload) => {
-      console.info('axh @textile/migrationNeeded')
-    })
-  }
-  setup () {
-    // First you setup your state-preserving instance of Textile
-    this.textile.setup()
-    
     // We'll ad a listener so we can display updates issued by the AppStateEventHandler
     DeviceEventEmitter.addListener('@textile/appNextState', (payload) => {
+      console.info('axh @textile/appNextState', payload.nextState)
       const previous_app_state = this.state.current_app_state
       this.setState({current_app_state: payload.nextState, previous_app_state})
     })
-
-    // Listen for node state changes
+    
+    // Keep track of what our node state is
     DeviceEventEmitter.addListener('@textile/newNodeState', (payload) => {
+      console.info('axh @textile/newNodeState', payload.state)
       this.setState({node_state: payload.state})
     })
 
-    this.setState({stage: 'starting'})
+    // Keep track of any errors
+    DeviceEventEmitter.addListener('@textile/error', (payload) => {
+      console.info('axh @textile/error', payload.type, payload.message)
+    })
+    
+    this.createDemoFile()
 
+    this.textile.setup({
+      RELEASE_TYPE: 'beta',
+      TEXTILE_CAFE_GATEWAY_URL: "https://gateway.textile.cafe",
+      TEXTILE_CAFE_OVERRIDE: undefined
+    })
+  }
+  createDemoFile = () => {
     // Store a small image for testing pins later
     RNFS.downloadFile({fromUrl:'https://ipfs.textile.io:5050/ipfs/QmT3jRTd57HrM4K5cCNkSk9uQidjLrZPAnKe8V9oxfX2Bp', toFile: `${RNFS.DocumentDirectoryPath}/textile.png`})
-  }
-
-  startNode() {
-    // Next, you tell that instance to create a Textile node and start it
-    this.textile.createAndStartNode().then(() => {
-      this.setState({stage: 'started'})
-    }).catch((error) => {
-      console.error(error)
-    })
   }
 
   // Gets a map of Thread IDs into our local state
@@ -237,13 +179,14 @@ export default class App extends Component<Props> {
 
   // Simple logic to toggle the node on and off again
   toggleNode = () => {
-    if (this.state.stage === 'stopped') {
-      this.startNode()
-    } else if (this.state.stage === 'started') {
-      this.setState({stage: 'stopping'})
-      this.textile.shutDown().then(() => {
-        this.setState({stage: 'stopped'})
+    if (this.state.node_state === 'stopped') {
+      console.log('axh try start')
+      this.textile.nodeState().then((payload) => {
+        console.log('axh', payload)
       })
+      this.textile.createAndStartNode()
+    } else if (this.state.node_state === 'started') {
+      this.textile.shutDown()
     }
   }
 
