@@ -3,7 +3,7 @@ import {Component} from 'react';
 import * as RNFS from 'react-native-fs';
 import { DeviceEventEmitter, StyleSheet, Text, View, Linking, TouchableOpacity } from 'react-native';
 
-import {Textile, NodeState, Overview, ThreadInfo, BlockInfo} from '@textile/react-native-sdk';
+import {Textile, NodeState, Overview, ThreadInfo, BlockInfo, Events} from '@textile/react-native-sdk';
 import { IMobilePreparedFiles } from '@textile/react-native-protobufs';
 
 type Props = {};
@@ -39,6 +39,7 @@ export default class App extends Component<Props> {
   }
 
   textile = new Textile({debug: true})
+  textileEvents = new Events()
 
   componentDidUpdate(prevProps: Props, prevState: State) {
     if (this.state.node_state !== prevState.node_state) {
@@ -71,21 +72,19 @@ export default class App extends Component<Props> {
 
   componentDidMount() {
     // We'll ad a listener so we can display updates issued by the AppStateEventHandler
-    DeviceEventEmitter.addListener('@textile/appNextState', (payload) => {
-      console.info('axh @textile/appNextState', payload.nextState)
+    this.textileEvents.addListener('appNextState', (payload) => {
+      console.info('@textile/appNextState', payload.nextState)
       const previous_app_state = this.state.current_app_state
       this.setState({current_app_state: payload.nextState, previous_app_state})
     })
     
-    // Keep track of what our node state is
-    DeviceEventEmitter.addListener('@textile/newNodeState', (payload) => {
-      console.info('axh @textile/newNodeState', payload.state)
+    this.textileEvents.addListener('newNodeState', (payload) => {
+      console.info('@textile/newNodeState', payload.state)
       this.setState({node_state: payload.state})
     })
 
-    // Keep track of any errors
-    DeviceEventEmitter.addListener('@textile/error', (payload) => {
-      console.info('axh @textile/error', payload.type, payload.message)
+    this.textileEvents.addListener('error', (payload) => {
+      console.info('@textile/error', payload.type, payload.message)
     })
     
     this.createDemoFile()
@@ -180,10 +179,6 @@ export default class App extends Component<Props> {
   // Simple logic to toggle the node on and off again
   toggleNode = () => {
     if (this.state.node_state === 'stopped') {
-      console.log('axh try start')
-      this.textile.nodeState().then((payload) => {
-        console.log('axh', payload)
-      })
       this.textile.createAndStartNode()
     } else if (this.state.node_state === 'started') {
       this.textile.shutDown()
