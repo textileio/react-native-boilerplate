@@ -1,11 +1,9 @@
 import React from 'react';
 import {Component} from 'react';
 import * as RNFS from 'react-native-fs';
-import { DeviceEventEmitter, StyleSheet, Text, View, Linking, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, Linking, TouchableOpacity } from 'react-native';
 
-import {Textile, NodeState, Overview, ThreadInfo, BlockInfo, Events} from '@textile/react-native-sdk';
-import { IMobilePreparedFiles } from '@textile/react-native-protobufs';
-
+import { Textile, NodeState, Overview, ThreadInfo, BlockInfo, Events as TextileEvents, Protobufs, ThreadType, ThreadSharing, SchemaType} from '@textile/react-native-sdk';
 type Props = {};
 
 // You could use Models.NodeState here to match the internals of Textile
@@ -39,8 +37,8 @@ export default class App extends Component<Props> {
   }
 
   textile = new Textile({debug: true})
-  textileEvents = new Events()
-
+  events = new TextileEvents()
+  
   componentDidUpdate(prevProps: Props, prevState: State) {
     if (this.state.node_state !== prevState.node_state) {
       switch (this.state.node_state) {
@@ -72,18 +70,18 @@ export default class App extends Component<Props> {
 
   componentDidMount() {
     // We'll ad a listener so we can display updates issued by the AppStateEventHandler
-    this.textileEvents.addListener('appNextState', (payload) => {
+    this.events.addListener('appNextState', (payload) => {
       console.info('@textile/appNextState', payload.nextState)
       const previous_app_state = this.state.current_app_state
       this.setState({current_app_state: payload.nextState, previous_app_state})
     })
     
-    this.textileEvents.addListener('newNodeState', (payload) => {
+    this.events.addListener('newNodeState', (payload) => {
       console.info('@textile/newNodeState', payload.state)
       this.setState({node_state: payload.state})
     })
 
-    this.textileEvents.addListener('error', (payload) => {
+    this.events.addListener('error', (payload) => {
       console.info('@textile/error', payload.type, payload.message)
     })
     
@@ -140,7 +138,17 @@ export default class App extends Component<Props> {
   // Create a new Thread for writing files to. Read more about threads on https://github.com/textileio/textile-go/wiki
   createThread = () => {
     const key = `textile-ipfs-demo-${this.fake_uuid()}`
-    this.textile.addThread(key, `Thread #${this.state.threads.length}`, true).then((result: ThreadInfo) => {
+    this.textile.addThread(
+      key,
+      `Thread #${this.state.threads.length}`,
+      // Types: PRIVATE, READ_ONLY, PUBLIC, OPEN
+      ThreadType.PRIVATE,
+      // Sharing: NOT_SHARED, INVITE_ONLY, SHARED
+      ThreadSharing.INVITE_ONLY,
+      [],
+      // MEDIA (low res for sharing), CAMERA_ROLL (high res), JSON (custom schema)
+      SchemaType.MEDIA
+      ).then((result: ThreadInfo) => {
       this.setState({
         threads: [...this.state.threads, result.id]
       })

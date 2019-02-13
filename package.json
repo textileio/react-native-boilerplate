@@ -7,7 +7,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "@textile/react-native-sdk": "1.1.0-rc13",
+    "@textile/react-native-sdk": "1.1.0-rc14",
     "prop-types": "^15.6.2",
     "react": "^16.6.3",
     "react-native": "^0.57.2",

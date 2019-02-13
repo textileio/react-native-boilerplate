@@ -612,22 +612,22 @@
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/@protobufjs/utf8/-/utf8-1.1.0.tgz#a777360b5b39a1a2e5106f8e858f2fd2d060c570"
 
-"@textile/go-mobile@1.0.0-rc31":
-  version "1.0.0-rc31"
-  resolved "https://registry.yarnpkg.com/@textile/go-mobile/-/go-mobile-1.0.0-rc31.tgz#58d5122a5511caea04b424c87ff48c8180f3678d"
+"@textile/go-mobile@1.0.0-rc36":
+  version "1.0.0-rc36"
+  resolved "https://registry.yarnpkg.com/@textile/go-mobile/-/go-mobile-1.0.0-rc36.tgz#3ba211d4e3c51a34786cde3cf1a1c61b9d3c1270"
 
-"@textile/react-native-protobufs@1.1.0":
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/@textile/react-native-protobufs/-/react-native-protobufs-1.1.0.tgz#facc6791d1e978859ab815fd3208494a5272d675"
+"@textile/react-native-protobufs@1.1.1":
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/@textile/react-native-protobufs/-/react-native-protobufs-1.1.1.tgz#90842bbce73f66e3193ab64ed584834e5b7e537b"
   dependencies:
     protobufjs "^6.8.8"
 
-"@textile/react-native-sdk@1.1.0-rc13":
-  version "1.1.0-rc13"
-  resolved "https://registry.yarnpkg.com/@textile/react-native-sdk/-/react-native-sdk-1.1.0-rc13.tgz#a7c676ec601b5b0460b2646afb0710607cfd0d76"
+"@textile/react-native-sdk@1.1.0-rc14":
+  version "1.1.0-rc14"
+  resolved "https://registry.yarnpkg.com/@textile/react-native-sdk/-/react-native-sdk-1.1.0-rc14.tgz#0cb1c365b91f6f316df01817730a833cacbe237f"
   dependencies:
-    "@textile/go-mobile" "1.0.0-rc31"
-    "@textile/react-native-protobufs" "1.1.0"
+    "@textile/go-mobile" "1.0.0-rc36"
+    "@textile/react-native-protobufs" "1.1.1"
     buffer "^5.2.1"
     prop-types "^15.6.2"
 
@@ -640,8 +640,8 @@
   resolved "https://registry.yarnpkg.com/@types/long/-/long-4.0.0.tgz#719551d2352d301ac8b81db732acb6bdc28dbdef"
 
 "@types/node@^10.1.0":
-  version "10.12.24"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-10.12.24.tgz#b13564af612a22a20b5d95ca40f1bffb3af315cf"
+  version "10.12.26"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-10.12.26.tgz#2dec19f1f7981c95cb54bab8f618ecb5dc983d0e"
 
 "@types/prop-types@*":
   version "15.5.8"
