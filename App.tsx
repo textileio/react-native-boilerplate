@@ -3,7 +3,7 @@ import {Component} from 'react';
 import * as RNFS from 'react-native-fs';
 import { StyleSheet, Text, View, Linking, TouchableOpacity } from 'react-native';
 
-import { Textile, NodeState, Overview, ThreadInfo, BlockInfo, Events as TextileEvents, Protobufs, ThreadType, ThreadSharing, SchemaType} from '@textile/react-native-sdk';
+import { Textile, NodeState, ThreadInfo, BlockInfo, Events as TextileEvents, ThreadType, ThreadSharing, SchemaType, Summary, pb} from '@textile/react-native-sdk';
 type Props = {};
 
 // You could use Models.NodeState here to match the internals of Textile
@@ -12,7 +12,7 @@ type State = {
   api_version: string
   current_app_state: string
   node_state: NodeState,
-  overview: Overview
+  summary: Summary
   peer_id: string
   previous_app_state: string
   recentPinHash: string
@@ -23,7 +23,7 @@ export default class App extends Component<Props> {
     api_version: 'unknown',
     current_app_state: 'active',
     node_state: 'nonexistent',
-    overview: {
+    summary: {
       account_peer_cnt: -1,
       thread_cnt: -1,
       file_cnt: -1,
@@ -49,9 +49,9 @@ export default class App extends Component<Props> {
           this.refreshLocalThreads()
 
           // No need for a helper
-          this.textile.overview().then((result: Overview) => {
+          this.textile.summary().then((result: Summary) => {
             this.setState({
-              overview: result
+              summary: result
             })
           })
           break;
@@ -60,9 +60,9 @@ export default class App extends Component<Props> {
       }
     }
     if (this.state.threads.length !== prevState.threads.length) {
-      this.textile.overview().then((result: Overview) => {
+      this.textile.summary().then((result: Summary) => {
         this.setState({
-          overview: result
+          summary: result
         })
       })
     }
@@ -157,23 +157,23 @@ export default class App extends Component<Props> {
 
   // Add the basic text file we created during the setup() step to IPFS
   addNewPin = () => {
-    if (this.state.overview.thread_cnt < 1) {
+    if (this.state.summary.thread_cnt < 1) {
       return
     }
     this.textile.prepareFilesAsync(`${RNFS.DocumentDirectoryPath}/textile.png`, this.state.threads[0])
-      .then((result: IMobilePreparedFiles) => {
+      .then((result: pb.IMobilePreparedFiles) => {
         const dir = result.dir
         if (!dir) {
           return
       }
-      this.textile.addThreadFiles(dir, this.state.threads[0], '')
+      this.textile.addFiles(dir, this.state.threads[0], '')
         .then((result: BlockInfo) => {
           this.setState({
             recentPinHash: result.id
           })
-          this.textile.overview().then((result: Overview) => {
+          this.textile.summary().then((result: Summary) => {
             this.setState({
-              overview: result
+              summary: result
             })
           })
       })
@@ -201,8 +201,8 @@ export default class App extends Component<Props> {
           <Text style={styles.item}>API Version: {this.state.api_version}</Text>
           <Text style={styles.item}>Node State: {this.state.node_state}</Text>
           <Text style={styles.item}>Peer ID: {this.state.peer_id && this.state.peer_id.substring(0, 12)}...</Text>
-          <Text style={styles.item}>Pin Count: {this.state.overview.file_cnt}</Text>
-          <Text style={styles.item}>Thread Count: {this.state.overview.thread_cnt}</Text>
+          <Text style={styles.item}>Pin Count: {this.state.summary.file_cnt}</Text>
+          <Text style={styles.item}>Thread Count: {this.state.summary.thread_cnt}</Text>
           <Text style={styles.item}>App Status: {this.state.current_app_state}</Text>
           <Text style={styles.item}>Previous App Status: {this.state.previous_app_state}</Text>
         </View>
@@ -241,7 +241,7 @@ export default class App extends Component<Props> {
   }
 
   newPinButton() {
-    const disabled = this.state.node_state !== 'started' || this.state.overview.thread_cnt < 1
+    const disabled = this.state.node_state !== 'started' || this.state.summary.thread_cnt < 1
     return (
       <View>
         <TouchableOpacity
