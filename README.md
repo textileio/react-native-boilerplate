@@ -2,6 +2,8 @@
 
 A basic boilerplate for creating, starting, and managing an IPFS peer using Textile's [React Native SDK](https://github.com/textileio/react-native-sdk).
 
+If you are looking for a more advanced example, see our [Advanced Boilerplate](https://github.com/textileio/advanced-react-native-boilerplate/tree/master) that contains `react-navigation`, redux, and sagas together with Textile.
+
 This app demonstrates the bare minimum steps to launch a Textile node to manage an IPFS peer in a mobile app. Those steps are roughly,
 
 1. Initialize an instance of the Textile class.
