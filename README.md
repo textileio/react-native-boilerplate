@@ -43,3 +43,7 @@ react-native run-ios
 Should look like this,
 
 ![demo](https://ipfs.io/ipfs/Qme5NdF5qVLFYDxuPLENDsK8KStuU4CsLLeVpQSFEfd6LQ)
+
+#### Issues
+
+Please add any issues to the [react-native-sdk repo](https://github.com/textileio/react-native-sdk).
