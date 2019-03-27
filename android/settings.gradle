@@ -10,4 +10,4 @@ project(':@textile_react-native-sdk').projectDir = new File(rootProject.projectD
 
 include ':app'
 
-include ':textilego'
+include ':mobile'

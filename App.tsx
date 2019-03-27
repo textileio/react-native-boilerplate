@@ -3,7 +3,7 @@ import {Component} from 'react';
 import * as RNFS from 'react-native-fs';
 import { StyleSheet, Text, View, Linking, TouchableOpacity } from 'react-native';
 
-import { Textile, NodeState, ThreadInfo, BlockInfo, Events as TextileEvents, ThreadType, ThreadSharing, SchemaType, Summary, pb} from '@textile/react-native-sdk';
+import { Textile, API, NodeState, Events as TextileEvents, pb} from '@textile/react-native-sdk';
 type Props = {};
 
 // You could use Models.NodeState here to match the internals of Textile
@@ -12,7 +12,7 @@ type State = {
   api_version: string
   current_app_state: string
   node_state: NodeState,
-  summary: Summary
+  summary: pb.ISummary
   peer_id: string
   previous_app_state: string
   recentPinHash: string
@@ -23,12 +23,7 @@ export default class App extends Component<Props> {
     api_version: 'unknown',
     current_app_state: 'active',
     node_state: 'nonexistent',
-    summary: {
-      account_peer_cnt: -1,
-      thread_cnt: -1,
-      file_cnt: -1,
-      contact_cnt: -1
-    },
+    summary: new pb.Summary(),
     peer_id: 'unknown',
     previous_app_state: 'unknown',
     recentPinHash: 'none',
@@ -49,22 +44,14 @@ export default class App extends Component<Props> {
           this.refreshLocalThreads()
 
           // No need for a helper
-          this.textile.summary().then((result: Summary) => {
-            this.setState({
-              summary: result
-            })
-          })
+          this.updateSummary()
           break;
         default:
           break;
       }
     }
     if (this.state.threads.length !== prevState.threads.length) {
-      this.textile.summary().then((result: Summary) => {
-        this.setState({
-          summary: result
-        })
-      })
+      this.updateSummary()
     }
   }
 
@@ -75,7 +62,12 @@ export default class App extends Component<Props> {
       const previous_app_state = this.state.current_app_state
       this.setState({current_app_state: payload.nextState, previous_app_state})
     })
-    
+    this.events.addListener('NODE_STOP', () => {
+      console.info('@textile/NODE_STOP')
+    })
+    this.events.addListener('NODE_START', () => {
+      console.info('@textile/NODE_START')
+    })
     this.events.addListener('newNodeState', (payload) => {
       console.info('@textile/newNodeState', payload.state)
       this.setState({node_state: payload.state})
@@ -88,37 +80,45 @@ export default class App extends Component<Props> {
     this.createDemoFile()
 
     this.textile.setup()
+      .catch((error: Error) => {
+        console.error('Textile.setup', error.message)
+      })
   }
   createDemoFile = () => {
     // Store a small image for testing pins later
-    RNFS.downloadFile({fromUrl:'https://ipfs.textile.io:5050/ipfs/QmT3jRTd57HrM4K5cCNkSk9uQidjLrZPAnKe8V9oxfX2Bp', toFile: `${RNFS.DocumentDirectoryPath}/textile.png`})
+    const { promise } = RNFS.downloadFile({fromUrl:'https://ipfs.io/ipfs/QmT3jRTd57HrM4K5cCNkSk9uQidjLrZPAnKe8V9oxfX2Bp', toFile: `${RNFS.DocumentDirectoryPath}/textile.png`})
+    promise.catch((error: Error) => {
+      console.error('RNFS.downloadFile', error.message)
+    })
   }
 
   // Gets a map of Thread IDs into our local state
   refreshLocalThreads () {
-    this.textile.threads().then((result: ReadonlyArray<ThreadInfo>) => {
+    API.threads.list().then((threadList: pb.IThreadList) => {
       this.setState({
-        threads: result.map((threadInfo) => threadInfo.id)
+        threads: threadList.items.map((threadInfo) => threadInfo.id)
       })
+    }).catch((error: Error) => {
+      console.error('API.threads.list', error.message)
     })
   }
   
   // Gets the API version running in Textile
   getAPIVersion() {
     // You can run the api object right on your textile instance
-    this.textile.version().then((result: string) => {
-      this.setState({api_version: result})
+    API.version().then((api_version: string) => {
+      this.setState({api_version})
     }).catch((error: Error) => {
-      console.error(error)
+      console.error('API.version', error.message)
     })
   }
 
   // Get the local node's PeerId
   getPeerId() {
-    this.textile.peerId().then((result: string) => {
-      this.setState({peer_id: result})
+    API.ipfs.peerId().then((peer_id: string) => {
+      this.setState({peer_id})
     }).catch((error: Error) => {
-      console.error(error)
+      console.error('API.ipfs.peerId', error.message)
     })
   }
 
@@ -138,58 +138,75 @@ export default class App extends Component<Props> {
   // Create a new Thread for writing files to. Read more about threads on https://github.com/textileio/textile-go/wiki
   createThread = () => {
     const key = `textile-ipfs-demo-${this.fake_uuid()}`
-    this.textile.addThread(
-      key,
-      `Thread #${this.state.threads.length}`,
-      // Types: PRIVATE, READ_ONLY, PUBLIC, OPEN
-      ThreadType.PRIVATE,
-      // Sharing: NOT_SHARED, INVITE_ONLY, SHARED
-      ThreadSharing.INVITE_ONLY,
-      [],
-      // MEDIA (low res for sharing), CAMERA_ROLL (high res), JSON (custom schema)
-      SchemaType.MEDIA
-      ).then((result: ThreadInfo) => {
+    const schema = pb.AddThreadConfig.Schema.create()
+    schema.preset = pb.AddThreadConfig.Schema.Preset.MEDIA
+    const config = pb.AddThreadConfig.create()
+    config.key = key
+    config.name = `Thread #${this.state.threads.length}`
+    config.type = pb.Thread.Type.PRIVATE
+    config.sharing = pb.Thread.Sharing.INVITE_ONLY
+    config.schema = schema
+
+    API.threads.add(config).then((result: pb.IThread) => {
       this.setState({
         threads: [...this.state.threads, result.id]
       })
+    }).catch((error: Error) => {
+      console.error('API.threads.add', error.message)
     })
   }
 
   // Add the basic text file we created during the setup() step to IPFS
   addNewPin = () => {
-    if (this.state.summary.thread_cnt < 1) {
+    if (this.state.summary.threadCount < 1) {
       return
     }
-    this.textile.prepareFilesAsync(`${RNFS.DocumentDirectoryPath}/textile.png`, this.state.threads[0])
+    API.files.prepareFilesByPath(`${RNFS.DocumentDirectoryPath}/textile.png`, this.state.threads[0])
       .then((result: pb.IMobilePreparedFiles) => {
         const dir = result.dir
         if (!dir) {
           return
       }
-      this.textile.addFiles(dir, this.state.threads[0], '')
-        .then((result: BlockInfo) => {
+      API.files.add(dir, this.state.threads[0], '')
+        .then((result: pb.IBlock) => {
           this.setState({
             recentPinHash: result.id
           })
-          this.textile.summary().then((result: Summary) => {
-            this.setState({
-              summary: result
-            })
-          })
+          this.updateSummary()
+        }).catch((error: Error) => {
+          console.error('API.files.add', error.message)
+        })
+      }).catch((error: Error) => {
+        console.error('API.files.prepareFilesByPath', error.message)
       })
-    })
   }
 
+  updateSummary = () => {
+    API.summary().then((summary: pb.ISummary) => {
+      this.setState({
+        summary
+      })
+    }).catch((error: Error) => {
+      console.error(error.message)
+    })
+  }
   // Simple logic to toggle the node on and off again
   toggleNode = () => {
     if (this.state.node_state === 'stopped') {
-      this.textile.createAndStartNode()
+      this.textile.nodeCreateAndStart()
+      .catch((error: Error) => {
+        console.error('Textile.nodeCreateAndStart', error.message)
+      })
     } else if (this.state.node_state === 'started') {
-      this.textile.shutDown()
+      API.stop()
+      .catch((error: Error) => {
+        console.error('API.stop', error.message)
+      })
     }
   }
 
   render() {
+    // TODO: {this.toggleNodeButton()}
     return (
       <View style={styles.container}>
         <Text style={styles.heading}>Your IPFS Peer</Text>
@@ -201,12 +218,11 @@ export default class App extends Component<Props> {
           <Text style={styles.item}>API Version: {this.state.api_version}</Text>
           <Text style={styles.item}>Node State: {this.state.node_state}</Text>
           <Text style={styles.item}>Peer ID: {this.state.peer_id && this.state.peer_id.substring(0, 12)}...</Text>
-          <Text style={styles.item}>Pin Count: {this.state.summary.file_cnt}</Text>
-          <Text style={styles.item}>Thread Count: {this.state.summary.thread_cnt}</Text>
+          <Text style={styles.item}>Pin Count: {this.state.summary.fileCount}</Text>
+          <Text style={styles.item}>Thread Count: {this.state.summary.threadCount}</Text>
           <Text style={styles.item}>App Status: {this.state.current_app_state}</Text>
           <Text style={styles.item}>Previous App Status: {this.state.previous_app_state}</Text>
         </View>
-        {this.toggleNodeButton()}
         {this.createThreadButton()}
         {this.newPinButton()}
           <Text style={styles.smallItem}>{this.state.recentPinHash}</Text>
