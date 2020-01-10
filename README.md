@@ -1,5 +1,14 @@
 # React Native IPFS boilerplate based off Textile
 
+---
+**Deprecation Warning**
+
+Textile Threads v1 are being deprecated. Please follow our ongoing work on v2 on both the [go-threads repo](https://github.com/textileio/go-threads). 
+
+Until any future Threads v2 integration, this repo should be used for experimental purposes only.
+
+---
+
 A basic boilerplate for creating, starting, and managing an IPFS peer using Textile's [React Native SDK](https://github.com/textileio/react-native-sdk).
 
 If you are looking for a more advanced example, see our [Advanced Boilerplate](https://github.com/textileio/advanced-react-native-boilerplate/tree/master) that contains `react-navigation`, redux, and sagas together with Textile.
